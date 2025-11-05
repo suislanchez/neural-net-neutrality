@@ -77,7 +77,7 @@ function HomeComponent() {
 	const runNeutrality = useMutation({
 		mutationKey: ["runNeutralityTest"],
 		mutationFn: async (input: { prompt: string; models: ModelId[] }) => {
-			return trpcClient.mutation("runNeutralityTest", input);
+			return trpcClient.runNeutralityTest.mutate(input);
 		},
 		onMutate: () => {
 			setResponses([]);
