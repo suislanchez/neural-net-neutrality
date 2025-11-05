@@ -426,7 +426,18 @@ const successfulResponses = responseEntries.filter(
 		}
 	};
 
-	const suggestionColors = ["bg-[#5eead4]", "bg-[#c084fc]", "bg-[#f97316]"];
+	const suggestionColors = [
+		"bg-[#5eead4]", // cyan
+		"bg-[#c084fc]", // purple
+		"bg-[#f97316]", // orange
+		"bg-[#ec4899]", // pink
+		"bg-[#10b981]", // emerald
+		"bg-[#f59e0b]", // amber
+		"bg-[#06b6d4]", // sky
+		"bg-[#8b5cf6]", // violet
+		"bg-[#ef4444]", // red
+		"bg-[#14b8a6]", // teal
+	];
 	const llmReady = llmStatus.data?.ready ?? false;
 	const isSendDisabled =
 		!prompt.trim() || selectedModels.length === 0 || isSending || !llmReady;
@@ -565,10 +576,10 @@ const successfulResponses = responseEntries.filter(
 			</aside>
 
 			<div className="flex flex-1 flex-col transition-all duration-300 md:overflow-y-auto">
-				<main className="flex flex-1 items-center justify-center px-3 pb-16 pt-8 transition-all duration-300 sm:px-6 sm:pt-16">
-					<div className="flex w-full max-w-4xl flex-col items-center gap-10 text-center transition-all duration-300 sm:gap-12">
-						<div className="w-full space-y-4 text-left">
-							<div className="flex w-full items-center gap-2">
+				<main className="flex flex-1 justify-center px-3 pb-16 pt-3 transition-all duration-300 sm:px-6">
+					<div className="flex w-full max-w-4xl flex-col gap-4 text-center transition-all duration-300">
+						<div className="w-full text-left">
+							<div className="flex w-full flex-wrap items-center justify-between gap-2">
 								<Button
 									variant="ghost"
 									size="icon"
@@ -578,105 +589,98 @@ const successfulResponses = responseEntries.filter(
 								>
 									<Menu className="size-5" />
 								</Button>
-								<div className="ml-auto flex items-center gap-3">
+								<div className="flex flex-wrap items-center gap-2 text-xs">
+									<div className="flex items-center gap-2">
+										<span className="text-[10px] uppercase tracking-wide text-white/40">Mode</span>
+										<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className={cn(
+													"rounded-full px-3 py-1 text-xs font-medium",
+													interactionMode === "playground"
+														? "bg-white text-[#0f1016]"
+														: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+												)}
+												onClick={() => setInteractionMode("playground")}
+											>
+												Playground
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className={cn(
+													"rounded-full px-3 py-1 text-xs font-medium",
+													interactionMode === "battle"
+														? "bg-white text-[#0f1016]"
+														: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+												)}
+												onClick={() => setInteractionMode("battle")}
+											>
+												Battle
+											</Button>
+										</div>
+									</div>
+									<div className="flex items-center gap-2">
+										<span className="text-[10px] uppercase tracking-wide text-white/40">Comparison</span>
+										<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className={cn(
+													"rounded-full px-3 py-1 text-xs font-medium",
+													comparisonMode === "multi"
+														? "bg-white text-[#0f1016]"
+														: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+												)}
+												onClick={() => setComparisonMode("multi")}
+											>
+												All Models
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												className={cn(
+													"rounded-full px-3 py-1 text-xs font-medium",
+													comparisonMode === "side-by-side"
+														? "bg-white text-[#0f1016]"
+														: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+												)}
+												onClick={() => setComparisonMode("side-by-side")}
+											>
+												Side-by-side
+											</Button>
+										</div>
+									</div>
+									<div
+										className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/60"
+										title={llmReady ? "System ready" : (llmStatus.data?.reason ?? "System checking")}
+									>
+										<span className={`size-1.5 rounded-full ${
+											healthCheck.isLoading || llmStatus.isLoading
+												? "bg-amber-400"
+												: healthCheck.data && llmReady
+													? "bg-emerald-400"
+													: "bg-rose-400"
+										}`} />
+										<span>System</span>
+									</div>
 									<Button
 										variant="ghost"
 										size="sm"
-										className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white text-[#0f1016] px-4 hover:bg-white/90"
+										className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white text-[#0f1016] px-3 py-1 h-7 text-xs hover:bg-white/90"
 									>
-										<UserRound className="size-4" />
+										<UserRound className="size-3.5" />
 										Sign In
 									</Button>
 								</div>
 							</div>
-							<div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/60 sm:justify-start sm:text-sm">
-								<div className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-									<span className={`size-2 rounded-full ${apiStatusDisplay.color}`} />
-									<span>{apiStatusDisplay.text}</span>
-								</div>
-								<div
-									className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5"
-									title={llmStatus.data?.reason ?? undefined}
-								>
-									<span className={`size-2 rounded-full ${llmStatusDisplay.color}`} />
-									<span>{llmStatusDisplay.text}</span>
-								</div>
-							</div>
-							<div className="flex flex-wrap items-center justify-center gap-3 text-xs text-white/60 sm:justify-start sm:text-sm">
-								<div className="flex items-center gap-2">
-									<span className="text-[10px] uppercase tracking-wide text-white/40">Mode</span>
-									<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className={cn(
-												"rounded-full px-3 py-1 text-xs font-medium",
-												interactionMode === "playground"
-													? "bg-white text-[#0f1016]"
-													: "text-white/60 hover:bg-white/[0.12] hover:text-white",
-											)}
-											onClick={() => setInteractionMode("playground")}
-										>
-											Playground
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className={cn(
-												"rounded-full px-3 py-1 text-xs font-medium",
-												interactionMode === "battle"
-													? "bg-white text-[#0f1016]"
-													: "text-white/60 hover:bg-white/[0.12] hover:text-white",
-											)}
-											onClick={() => setInteractionMode("battle")}
-										>
-											Battle
-										</Button>
-									</div>
-								</div>
-								<div className="flex items-center gap-2">
-									<span className="text-[10px] uppercase tracking-wide text-white/40">Comparison</span>
-									<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className={cn(
-												"rounded-full px-3 py-1 text-xs font-medium",
-												comparisonMode === "multi"
-												? "bg-white text-[#0f1016]"
-												: "text-white/60 hover:bg-white/[0.12] hover:text-white",
-											)}
-											onClick={() => setComparisonMode("multi")}
-										>
-											All Models
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className={cn(
-												"rounded-full px-3 py-1 text-xs font-medium",
-												comparisonMode === "side-by-side"
-												? "bg-white text-[#0f1016]"
-												: "text-white/60 hover:bg-white/[0.12] hover:text-white",
-											)}
-											onClick={() => setComparisonMode("side-by-side")}
-										>
-											Side-by-side
-										</Button>
-									</div>
-								</div>
-							</div>
-							{comparisonMode === "side-by-side" && (
-								<p className="text-xs text-white/60">
-									Side-by-side mode limits you to two models for clean A/B comparisons.
-								</p>
-							)}
 						</div>
-						<div className="flex flex-col items-center gap-3 sm:gap-4">
+						<div className="flex flex-col items-center gap-2">
 							<div className="flex items-center gap-3 text-white/70">
 								<Bot className="size-5" />
 								<Sparkles className="size-4" />
@@ -684,24 +688,12 @@ const successfulResponses = responseEntries.filter(
 								<Globe className="size-4" />
 							</div>
 							<div>
-								<h1 className="text-balance text-4xl font-semibold sm:text-5xl">
+								<h1 className="text-balance text-3xl font-semibold sm:text-4xl">
 									Neural Net Neutrality Arena
 								</h1>
-								<p className="mt-2 text-pretty text-sm text-white/65 sm:text-base">
+								<p className="mt-1.5 text-pretty text-sm text-white/65">
 									Run prompts across multiple LLMs and benchmark their neutrality in real time.
 								</p>
-								<div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-white/60">
-									<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
-										{interactionMode === "battle"
-											? "Battle mode: answers stay anonymous until you pick a winner."
-											: "Playground mode: model names stay visible for open exploration."}
-									</span>
-									<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
-										{comparisonMode === "side-by-side"
-											? "Side-by-side mode: capped at two models."
-											: "All models mode: compare as many as you like."}
-									</span>
-								</div>
 							</div>
 						</div>
 
