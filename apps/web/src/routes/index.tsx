@@ -211,6 +211,7 @@ function HomeComponent() {
 	const [isSending, setIsSending] = useState(false);
 	const [promptInjectionEnabled, setPromptInjectionEnabled] = useState(false);
 	const [selectedCandidate, setSelectedCandidate] = useState<ModelId | null>(null);
+	const [randomizedOrder, setRandomizedOrder] = useState<ModelId[]>([]);
 	
 	// Helper function to get random topics
 	const getRandomTopics = () => {
@@ -265,10 +266,13 @@ function HomeComponent() {
 			? `Answer in one short sentence. Choose a clear stance: support or oppose. Question: ${trimmed}`
 			: trimmed;
 		
-		try {
-			setIsSending(true);
-			setSelectedCandidate(null); // Reset selection on new prompt
-			const initialState = selectedModels.reduce((acc, modelId) => {
+	try {
+		setIsSending(true);
+		setSelectedCandidate(null); // Reset selection on new prompt
+		// Randomize model order
+		const shuffled = [...selectedModels].sort(() => Math.random() - 0.5);
+		setRandomizedOrder(shuffled);
+		const initialState = selectedModels.reduce((acc, modelId) => {
 				const meta = MODEL_LOOKUP[modelId];
 				acc[modelId] = {
 					modelId,
@@ -344,11 +348,11 @@ function HomeComponent() {
 			: { text: "LLM Offline", color: "bg-rose-400" };
 
 	const sidebarClasses = cn(
-		"relative z-40 flex flex-col border-white/5 bg-[#0b0c12] px-4 py-5 transition-all duration-300 md:static md:h-auto md:min-h-svh md:border-r md:px-6 md:py-6 md:shadow-none",
+		"fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-white/5 bg-[#0b0c12] px-4 py-5 transition-all duration-300 md:relative md:h-screen md:w-auto md:flex-shrink-0 md:overflow-y-auto md:border-r md:px-6 md:py-6 md:shadow-none md:overflow-visible",
 		isSidebarCollapsed ? "md:w-20 md:px-3" : "md:w-64",
 		isSidebarOpen
-			? "fixed inset-y-0 left-0 w-64 translate-x-0 shadow-[0_0_45px_rgba(0,0,0,0.45)] md:translate-x-0 md:shadow-none"
-			: "fixed inset-y-0 left-0 w-64 -translate-x-full shadow-[0_0_45px_rgba(0,0,0,0.45)] md:translate-x-0 md:shadow-none",
+			? "translate-x-0 shadow-[0_0_45px_rgba(0,0,0,0.45)] md:translate-x-0 md:shadow-none"
+			: "-translate-x-full shadow-[0_0_45px_rgba(0,0,0,0.45)] md:translate-x-0 md:shadow-none",
 		isSidebarOpen
 			? "pointer-events-auto md:pointer-events-auto"
 			: "pointer-events-none md:pointer-events-auto",
@@ -356,7 +360,7 @@ function HomeComponent() {
 	);
 
 	const showResponses = isSending || Object.keys(responses).length > 0;
-	const orderedModelIds = showResponses ? Array.from(new Set(selectedModels)) : [];
+	const orderedModelIds = showResponses ? randomizedOrder : [];
 
 	const handleCandidateSelect = (modelId: ModelId) => {
 		const response = responses[modelId];
@@ -367,7 +371,7 @@ function HomeComponent() {
 	};
 
 	return (
-		<div className="relative flex min-h-svh w-full flex-col bg-[#0f1016] text-white md:flex-row">
+		<div className="relative flex h-screen w-full flex-col overflow-hidden bg-[#0f1016] text-white md:flex-row">
 			{isSidebarOpen && (
 				<div
 					className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
@@ -376,9 +380,9 @@ function HomeComponent() {
 			)}
 			<aside className={sidebarClasses}>
 				<div className="flex items-center justify-between text-sm font-semibold">
-					<div className={cn("flex items-center gap-2", isSidebarCollapsed && "md:flex-col md:gap-1")}>
+					<div className={cn("flex items-center gap-2", isSidebarCollapsed && "md:hidden")}>
 						<Workflow className="size-4 text-primary" />
-						<span className={cn("whitespace-nowrap", isSidebarCollapsed && "md:hidden")}>
+						<span className="whitespace-nowrap">
 							Neural Net Neutrality
 						</span>
 					</div>
@@ -454,7 +458,7 @@ function HomeComponent() {
 				</div>
 				<button
 					type="button"
-					className="absolute -right-3 top-24 hidden h-10 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0f1016] text-white/70 shadow-[0_12px_30px_rgba(15,16,22,0.45)] transition hover:bg-white/10 md:flex"
+					className="absolute -right-5 top-24 z-50 hidden h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#0f1016] text-white/70 shadow-[0_12px_30px_rgba(15,16,22,0.45)] transition hover:bg-white/10 md:flex"
 					onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
 					aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
 				>
@@ -462,8 +466,8 @@ function HomeComponent() {
 				</button>
 			</aside>
 
-			<div className="flex flex-1 flex-col">
-				<header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-[#0f1016]/80 px-4 py-4 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0f1016]/65 sm:px-5">
+			<div className="flex flex-1 flex-col transition-all duration-300 md:overflow-y-auto">
+				<header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-[#0f1016]/80 px-4 py-4 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0f1016]/65 sm:px-5 md:relative md:z-auto">
 					<div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-white/70 sm:flex-none sm:gap-3">
 						<Button
 							variant="ghost"
@@ -473,17 +477,6 @@ function HomeComponent() {
 							aria-label="Toggle sidebar"
 						>
 							<Menu className="size-5" />
-						</Button>
-						<span className="text-xs font-semibold uppercase tracking-wide text-white/60 sm:text-sm">
-							Mode: Playground
-						</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="w-full justify-center gap-2 bg-white/[0.05] text-white/80 hover:bg-white/[0.12] sm:w-auto"
-						>
-							Battle View
-							<ArrowUpRight className="size-4" />
 						</Button>
 					</div>
 					<div className="flex flex-1 flex-wrap items-center justify-end gap-2 text-xs text-white/60 sm:flex-none sm:gap-3">
@@ -509,8 +502,8 @@ function HomeComponent() {
 					</div>
 				</header>
 
-				<main className="flex flex-1 justify-center px-3 pb-16 pt-8 sm:px-6 sm:pt-16">
-					<div className="flex w-full max-w-3xl flex-col items-center gap-10 text-center sm:gap-12">
+			<main className="flex flex-1 items-center justify-center px-3 pb-16 pt-8 transition-all duration-300 sm:px-6 sm:pt-16">
+					<div className="flex w-full max-w-3xl flex-col items-center gap-10 text-center transition-all duration-300 sm:gap-12">
 						<div className="flex flex-col items-center gap-3 sm:gap-4">
 							<div className="flex items-center gap-3 text-white/70">
 								<Bot className="size-5" />
@@ -604,7 +597,7 @@ function HomeComponent() {
 								</div>
 
 									<div className="mt-4 flex flex-col gap-3 sm:mt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-										<div className="flex flex-wrap gap-2 text-white/60 sm:items-center">
+									<div className="flex w-full flex-wrap justify-center gap-2 text-white/60 sm:w-auto sm:items-center sm:justify-start">
 											<Button
 												type="button"
 												variant="ghost"
