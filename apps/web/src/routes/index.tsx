@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
 	ArrowUpRight,
 	Bot,
+	Check,
 	ChevronLeft,
 	ChevronRight,
 	CodeXml,
@@ -209,6 +210,7 @@ function HomeComponent() {
 	const [responses, setResponses] = useState<Record<ModelId, ResponseState>>({});
 	const [isSending, setIsSending] = useState(false);
 	const [promptInjectionEnabled, setPromptInjectionEnabled] = useState(false);
+	const [selectedCandidate, setSelectedCandidate] = useState<ModelId | null>(null);
 	
 	// Helper function to get random topics
 	const getRandomTopics = () => {
@@ -220,6 +222,11 @@ function HomeComponent() {
 	
 	const refreshTopics = () => {
 		setDisplayedTopics(getRandomTopics());
+	};
+
+	// Helper function to get candidate label (A, B, C, etc.)
+	const getCandidateLabel = (index: number): string => {
+		return `Candidate ${String.fromCharCode(65 + index)}`;
 	};
 
 	const toggleModel = (id: ModelId) => {
@@ -260,6 +267,7 @@ function HomeComponent() {
 		
 		try {
 			setIsSending(true);
+			setSelectedCandidate(null); // Reset selection on new prompt
 			const initialState = selectedModels.reduce((acc, modelId) => {
 				const meta = MODEL_LOOKUP[modelId];
 				acc[modelId] = {
@@ -349,6 +357,14 @@ function HomeComponent() {
 
 	const showResponses = isSending || Object.keys(responses).length > 0;
 	const orderedModelIds = showResponses ? Array.from(new Set(selectedModels)) : [];
+
+	const handleCandidateSelect = (modelId: ModelId) => {
+		const response = responses[modelId];
+		// Only allow selection if response is successful
+		if (response?.status === "success") {
+			setSelectedCandidate(modelId);
+		}
+	};
 
 	return (
 		<div className="relative flex min-h-svh w-full flex-col bg-[#0f1016] text-white md:flex-row">
@@ -666,7 +682,7 @@ function HomeComponent() {
 											</p>
 										)}
 										<div className="flex w-full snap-x gap-4 overflow-x-auto pb-4">
-											{orderedModelIds.map((modelId) => {
+											{orderedModelIds.map((modelId, index) => {
 												const meta = MODEL_LOOKUP[modelId];
 												const response = responses[modelId];
 												const resolved: ResponseState =
@@ -681,6 +697,10 @@ function HomeComponent() {
 												const isLoading = status === "loading";
 												const isError = status === "error";
 												const isSuccess = status === "success";
+												const isSelected = selectedCandidate === modelId;
+												const candidateLabel = getCandidateLabel(index);
+												const showModelInfo = isSelected || isError || isLoading;
+												
 												const statusBadge =
 													status === "success"
 														? {
@@ -705,16 +725,36 @@ function HomeComponent() {
 												return (
 													<article
 														key={modelId}
-														className="flex w-[260px] shrink-0 snap-start flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.05] p-4 shadow-[0_20px_45px_rgba(10,10,18,0.45)] sm:w-[320px] lg:w-[340px]"
+														onClick={() => handleCandidateSelect(modelId)}
+														className={cn(
+															"flex w-[260px] shrink-0 snap-start flex-col gap-3 rounded-2xl border p-4 shadow-[0_20px_45px_rgba(10,10,18,0.45)] transition-all sm:w-[320px] lg:w-[340px]",
+															isSelected
+																? "border-emerald-400/50 bg-emerald-500/10 shadow-[0_20px_45px_rgba(16,185,129,0.15)]"
+																: isSuccess
+																	? "cursor-pointer border-white/10 bg-white/[0.05] hover:border-white/20 hover:bg-white/[0.08]"
+																	: "border-white/10 bg-white/[0.05]",
+														)}
 													>
 														<div className="flex items-start justify-between gap-3">
 															<div className="text-left">
-																<p className="text-sm font-semibold text-white">
-																	{resolved.modelName}
-																</p>
-																<p className="text-xs uppercase tracking-wide text-white/40">
-																	{resolved.provider}
-																</p>
+																<div className="flex items-center gap-2">
+																	<p className="text-sm font-semibold text-white">
+																		{showModelInfo ? resolved.modelName : candidateLabel}
+																	</p>
+																	{isSelected && (
+																		<Check className="size-4 text-emerald-400" />
+																	)}
+																</div>
+																{showModelInfo && (
+																	<p className="text-xs uppercase tracking-wide text-white/40">
+																		{resolved.provider}
+																	</p>
+																)}
+																{!showModelInfo && isSuccess && (
+																	<p className="text-xs text-white/50 italic">
+																		Click to reveal
+																	</p>
+																)}
 															</div>
 															<span
 																className={cn(
@@ -747,7 +787,10 @@ function HomeComponent() {
 																variant="ghost"
 																size="sm"
 																className="self-start text-xs text-white/60 hover:bg-white/[0.12]"
-																onClick={() => setPrompt(resolved.output)}
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setPrompt(resolved.output);
+																}}
 															>
 																Copy to prompt
 																<ArrowUpRight className="ml-1 size-4" />
