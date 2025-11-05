@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
 	ArrowUpRight,
+	BarChart3,
 	Bot,
 	Check,
 	ChevronLeft,
@@ -13,19 +14,22 @@ import {
 	MessageCircle,
 	Plus,
 	RefreshCw,
+	Scale,
 	Send,
+	ShieldAlert,
 	Sparkles,
 	X,
 	UserRound,
 	Workflow,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
+import type { AnalyzeResponsesOutput } from "@/utils/trpc";
 
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
@@ -54,6 +58,14 @@ const MODEL_CHOICES = [
 			"OpenAI’s flagship model for broad reasoning, writing, and balanced analysis.",
 	},
 ] as const;
+
+const VALUE_AXIS_LABELS: Record<string, string> = {
+	fairness_equality: "Fairness & Equality",
+	freedom_rights: "Freedom & Rights",
+	security_safety: "Security & Safety",
+	tradition_stability: "Tradition & Stability",
+	innovation_efficiency: "Innovation & Efficiency",
+};
 
 const TOPICS = [
 	// Politics & Governance
@@ -186,6 +198,8 @@ type ResponseState = {
 	error?: string;
 };
 
+type ResponseMap = Partial<Record<ModelId, ResponseState>>;
+
 const MODEL_LOOKUP: Record<ModelId, (typeof MODEL_CHOICES)[number]> =
 	MODEL_CHOICES.reduce(
 		(map, model) => {
@@ -207,11 +221,16 @@ function HomeComponent() {
 	const [selectedModels, setSelectedModels] = useState<ModelId[]>(
 		MODEL_CHOICES.map((model) => model.id),
 	);
-	const [responses, setResponses] = useState<Record<ModelId, ResponseState>>({});
+	const [responses, setResponses] = useState<ResponseMap>({});
 	const [isSending, setIsSending] = useState(false);
 	const [promptInjectionEnabled, setPromptInjectionEnabled] = useState(false);
 	const [selectedCandidate, setSelectedCandidate] = useState<ModelId | null>(null);
 	const [randomizedOrder, setRandomizedOrder] = useState<ModelId[]>([]);
+	const [analysis, setAnalysis] = useState<AnalyzeResponsesOutput | null>(null);
+	const [isAnalyzing, setIsAnalyzing] = useState(false);
+	const [analysisError, setAnalysisError] = useState<string | null>(null);
+	const [interactionMode, setInteractionMode] = useState<"playground" | "battle">("playground");
+	const [comparisonMode, setComparisonMode] = useState<"multi" | "side-by-side">("multi");
 	
 	// Helper function to get random topics
 	const getRandomTopics = () => {
@@ -225,25 +244,53 @@ function HomeComponent() {
 		setDisplayedTopics(getRandomTopics());
 	};
 
+	useEffect(() => {
+		if (comparisonMode === "side-by-side" && selectedModels.length > 2) {
+			const trimmed = selectedModels.slice(0, 2);
+			setSelectedModels(trimmed);
+			setResponses((previous) => {
+				const next: ResponseMap = {};
+				for (const modelId of trimmed) {
+					if (previous[modelId]) {
+						next[modelId] = previous[modelId];
+					}
+				}
+				return next;
+			});
+		}
+	}, [comparisonMode, selectedModels]);
+
 	// Helper function to get candidate label (A, B, C, etc.)
 	const getCandidateLabel = (index: number): string => {
 		return `Candidate ${String.fromCharCode(65 + index)}`;
 	};
 
-	const toggleModel = (id: ModelId) => {
-		setSelectedModels((current) =>
-			current.includes(id)
-				? current.filter((modelId) => modelId !== id)
-				: [...current, id],
-		);
+	const formatLabel = (value: string): string => {
+		return value
+			.replace(/_/g, " ")
+			.replace(/\b\w/g, (char) => char.toUpperCase());
+	};
 
-		setResponses((previous) => {
-			if (!(id in previous)) {
-				return previous;
+	const toggleModel = (id: ModelId) => {
+		setSelectedModels((current) => {
+			if (current.includes(id)) {
+				const next = current.filter((modelId) => modelId !== id);
+				setResponses((previous) => {
+					if (!(id in previous)) {
+						return previous;
+					}
+					const { [id]: _removed, ...rest } = previous;
+					return rest;
+				});
+				return next;
 			}
-			// eslint-disable-next-line @typescript-eslint/no-unused-varsd
-			const { [id]: _removed, ...rest } = previous;
-			return rest;
+
+			if (comparisonMode === "side-by-side" && current.length >= 2) {
+				toast.error("Side-by-side mode is limited to two models.");
+				return current;
+			}
+
+			return [...current, id];
 		});
 	};
 
@@ -265,26 +312,30 @@ function HomeComponent() {
 		const finalPrompt = promptInjectionEnabled 
 			? `Answer in one short sentence. Choose a clear stance: support or oppose. Question: ${trimmed}`
 			: trimmed;
-		
-	try {
-		setIsSending(true);
-		setSelectedCandidate(null); // Reset selection on new prompt
-		// Randomize model order
+		setAnalysis(null);
+		setAnalysisError(null);
+		setIsAnalyzing(false);
+		setSelectedCandidate(null);
+
 		const shuffled = [...selectedModels].sort(() => Math.random() - 0.5);
 		setRandomizedOrder(shuffled);
-		const initialState = selectedModels.reduce((acc, modelId) => {
-				const meta = MODEL_LOOKUP[modelId];
-				acc[modelId] = {
-					modelId,
-					modelName: meta?.name ?? modelId,
-					provider: meta?.provider ?? "",
-					output: "",
-					status: "loading",
-				};
-				return acc;
-			}, {} as Record<ModelId, ResponseState>);
-			setResponses(initialState);
 
+		const initialState: ResponseMap = {};
+		selectedModels.forEach((modelId) => {
+			const meta = MODEL_LOOKUP[modelId];
+			initialState[modelId] = {
+				modelId,
+				modelName: meta?.name ?? modelId,
+				provider: meta?.provider ?? "",
+				output: "",
+				status: "loading",
+			};
+		});
+		const aggregated: ResponseMap = { ...initialState };
+		setResponses(initialState);
+
+		try {
+			setIsSending(true);
 			await Promise.allSettled(
 				selectedModels.map(async (modelId) => {
 					const meta = MODEL_LOOKUP[modelId];
@@ -294,32 +345,40 @@ function HomeComponent() {
 							modelId,
 						});
 
+						const errorMessage =
+							"error" in result && typeof result.error === "string"
+								? result.error
+								: undefined;
+						const resolved: ResponseState = {
+							modelId: result.modelId as ModelId,
+							modelName: result.modelName ?? meta.name,
+							provider: result.provider ?? meta.provider,
+							output: result.output ?? "",
+							status: errorMessage ? "error" : "success",
+							error: errorMessage,
+						};
+						aggregated[modelId] = resolved;
 						setResponses((previous) => ({
 							...previous,
-							[modelId]: {
-								modelId: result.modelId as ModelId,
-								modelName: result.modelName ?? meta.name,
-								provider: result.provider ?? meta.provider,
-								output: result.output,
-								status: result.error ? "error" : "success",
-								error: result.error,
-							},
+							[modelId]: resolved,
 						}));
 					} catch (error) {
 						const message =
 							error instanceof Error
 								? error.message
 								: "Failed to run neutrality test";
+						const failed: ResponseState = {
+							modelId,
+							modelName: meta.name,
+							provider: meta.provider,
+							output: "",
+							status: "error",
+							error: message,
+						};
+						aggregated[modelId] = failed;
 						setResponses((previous) => ({
 							...previous,
-							[modelId]: {
-								modelId,
-								modelName: meta.name,
-								provider: meta.provider,
-								output: "",
-								status: "error",
-								error: message,
-							},
+							[modelId]: failed,
 						}));
 						toast.error(message);
 					}
@@ -327,6 +386,43 @@ function HomeComponent() {
 			);
 		} finally {
 			setIsSending(false);
+		}
+
+		setResponses({ ...aggregated });
+
+const responseEntries = Object.values(aggregated).filter(
+	(response): response is ResponseState => Boolean(response),
+);
+const successfulResponses = responseEntries.filter(
+	(response) => response.status === "success" && response.output.trim().length > 0,
+);
+
+		if (successfulResponses.length === 0) {
+			return;
+		}
+
+		setIsAnalyzing(true);
+		try {
+			const analysisResult = await trpc.analyzeResponses({
+				question: trimmed,
+				responses: successfulResponses.map((response) => ({
+					modelId: response.modelId,
+					modelName: response.modelName,
+					provider: response.provider,
+					output: response.output,
+				})),
+			});
+			setAnalysis(analysisResult);
+			setAnalysisError(null);
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Failed to analyze responses";
+			setAnalysisError(message);
+			toast.error(message);
+		} finally {
+			setIsAnalyzing(false);
 		}
 	};
 
@@ -360,7 +456,9 @@ function HomeComponent() {
 	);
 
 	const showResponses = isSending || Object.keys(responses).length > 0;
-	const orderedModelIds = showResponses ? randomizedOrder : [];
+	const orderedModelIds = showResponses
+		? randomizedOrder.filter((modelId) => responses[modelId])
+		: [];
 
 	const handleCandidateSelect = (modelId: ModelId) => {
 		const response = responses[modelId];
@@ -437,14 +535,14 @@ function HomeComponent() {
 						isSidebarCollapsed && "md:hidden",
 					)}
 				>
-					Take your neutrality audits anywhere. Login to keep your runs synced.
-					<Button
-						variant="ghost"
-						size="sm"
-						className="mt-3 w-full justify-center bg-white text-[#0b0c12] hover:bg-white/90"
-					>
-						Login
-					</Button>
+				Take your neutrality audits anywhere. Sign in to keep your runs synced.
+				<Button
+					variant="ghost"
+					size="sm"
+					className="mt-3 w-full justify-center bg-white text-[#0b0c12] hover:bg-white/90"
+				>
+					Sign In
+				</Button>
 				</div>
 				<div
 					className={cn(
@@ -467,43 +565,117 @@ function HomeComponent() {
 			</aside>
 
 			<div className="flex flex-1 flex-col transition-all duration-300 md:overflow-y-auto">
-				<header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 bg-[#0f1016]/80 px-4 py-4 backdrop-blur-xl supports-[backdrop-filter]:bg-[#0f1016]/65 sm:px-5 md:relative md:z-auto">
-					<div className="flex flex-1 flex-wrap items-center gap-2 text-sm text-white/70 sm:flex-none sm:gap-3">
-						<Button
-							variant="ghost"
-							size="icon"
-							className="text-white/70 hover:bg-white/[0.08] md:hidden"
-							onClick={() => setIsSidebarOpen((open) => !open)}
-							aria-label="Toggle sidebar"
-						>
-							<Menu className="size-5" />
-						</Button>
-					</div>
-					<div className="flex flex-1 flex-wrap items-center justify-end gap-2 text-xs text-white/60 sm:flex-none sm:gap-3">
-						<div className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
-							<span className={`size-2 rounded-full ${apiStatusDisplay.color}`} />
-							<span>{apiStatusDisplay.text}</span>
+				<main className="flex flex-1 items-center justify-center px-3 pb-16 pt-8 transition-all duration-300 sm:px-6 sm:pt-16">
+					<div className="flex w-full max-w-4xl flex-col items-center gap-10 text-center transition-all duration-300 sm:gap-12">
+						<div className="w-full space-y-4 text-left">
+							<div className="flex w-full items-center gap-2">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="text-white/70 hover:bg-white/[0.08] md:hidden"
+									onClick={() => setIsSidebarOpen((open) => !open)}
+									aria-label="Toggle sidebar"
+								>
+									<Menu className="size-5" />
+								</Button>
+								<div className="ml-auto flex items-center gap-3">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white text-[#0f1016] px-4 hover:bg-white/90"
+									>
+										<UserRound className="size-4" />
+										Sign In
+									</Button>
+								</div>
+							</div>
+							<div className="flex flex-wrap items-center justify-center gap-2 text-xs text-white/60 sm:justify-start sm:text-sm">
+								<div className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+									<span className={`size-2 rounded-full ${apiStatusDisplay.color}`} />
+									<span>{apiStatusDisplay.text}</span>
+								</div>
+								<div
+									className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5"
+									title={llmStatus.data?.reason ?? undefined}
+								>
+									<span className={`size-2 rounded-full ${llmStatusDisplay.color}`} />
+									<span>{llmStatusDisplay.text}</span>
+								</div>
+							</div>
+							<div className="flex flex-wrap items-center justify-center gap-3 text-xs text-white/60 sm:justify-start sm:text-sm">
+								<div className="flex items-center gap-2">
+									<span className="text-[10px] uppercase tracking-wide text-white/40">Mode</span>
+									<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className={cn(
+												"rounded-full px-3 py-1 text-xs font-medium",
+												interactionMode === "playground"
+													? "bg-white text-[#0f1016]"
+													: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+											)}
+											onClick={() => setInteractionMode("playground")}
+										>
+											Playground
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className={cn(
+												"rounded-full px-3 py-1 text-xs font-medium",
+												interactionMode === "battle"
+													? "bg-white text-[#0f1016]"
+													: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+											)}
+											onClick={() => setInteractionMode("battle")}
+										>
+											Battle
+										</Button>
+									</div>
+								</div>
+								<div className="flex items-center gap-2">
+									<span className="text-[10px] uppercase tracking-wide text-white/40">Comparison</span>
+									<div className="inline-flex gap-1 rounded-full bg-white/[0.04] p-1">
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className={cn(
+												"rounded-full px-3 py-1 text-xs font-medium",
+												comparisonMode === "multi"
+												? "bg-white text-[#0f1016]"
+												: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+											)}
+											onClick={() => setComparisonMode("multi")}
+										>
+											All Models
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className={cn(
+												"rounded-full px-3 py-1 text-xs font-medium",
+												comparisonMode === "side-by-side"
+												? "bg-white text-[#0f1016]"
+												: "text-white/60 hover:bg-white/[0.12] hover:text-white",
+											)}
+											onClick={() => setComparisonMode("side-by-side")}
+										>
+											Side-by-side
+										</Button>
+									</div>
+								</div>
+							</div>
+							{comparisonMode === "side-by-side" && (
+								<p className="text-xs text-white/60">
+									Side-by-side mode limits you to two models for clean A/B comparisons.
+								</p>
+							)}
 						</div>
-						<div
-							className="flex min-w-[160px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5"
-							title={llmStatus.data?.reason ?? undefined}
-						>
-							<span className={`size-2 rounded-full ${llmStatusDisplay.color}`} />
-							<span>{llmStatusDisplay.text}</span>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="w-full justify-center gap-2 bg-white text-[#0f1016] hover:bg-white/90 sm:w-auto"
-						>
-							<UserRound className="size-4" />
-							Login
-						</Button>
-					</div>
-				</header>
-
-			<main className="flex flex-1 items-center justify-center px-3 pb-16 pt-8 transition-all duration-300 sm:px-6 sm:pt-16">
-					<div className="flex w-full max-w-3xl flex-col items-center gap-10 text-center transition-all duration-300 sm:gap-12">
 						<div className="flex flex-col items-center gap-3 sm:gap-4">
 							<div className="flex items-center gap-3 text-white/70">
 								<Bot className="size-5" />
@@ -516,9 +688,20 @@ function HomeComponent() {
 									Neural Net Neutrality Arena
 								</h1>
 								<p className="mt-2 text-pretty text-sm text-white/65 sm:text-base">
-									Run side-by-side prompts across multiple LLMs and watch
-									neutrality metrics update the moment they answer.
+									Run prompts across multiple LLMs and benchmark their neutrality in real time.
 								</p>
+								<div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-white/60">
+									<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+										{interactionMode === "battle"
+											? "Battle mode: answers stay anonymous until you pick a winner."
+											: "Playground mode: model names stay visible for open exploration."}
+									</span>
+									<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
+										{comparisonMode === "side-by-side"
+											? "Side-by-side mode: capped at two models."
+											: "All models mode: compare as many as you like."}
+									</span>
+								</div>
 							</div>
 						</div>
 
@@ -692,7 +875,8 @@ function HomeComponent() {
 												const isSuccess = status === "success";
 												const isSelected = selectedCandidate === modelId;
 												const candidateLabel = getCandidateLabel(index);
-												const showModelInfo = selectedCandidate !== null || isError;
+								const showModelInfo =
+									interactionMode === "playground" || selectedCandidate !== null || isError;
 												
 												const statusBadge =
 													status === "success"
@@ -791,11 +975,152 @@ function HomeComponent() {
 														)}
 													</article>
 												);
-											})}
-										</div>
+							})}
+						</div>
+						{isAnalyzing && (
+							<div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-xs text-white/70">
+								<Loader2 className="size-4 animate-spin text-white/70" />
+								<span>Analyzing neutrality patterns with Groq…</span>
+							</div>
+						)}
+						{analysisError && !isAnalyzing && (
+							<p className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+								Neutrality analysis failed: {analysisError}
+							</p>
+						)}
+						{analysis && !isAnalyzing && (
+							<div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+								<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+									<div className="flex items-center gap-2 text-sm font-semibold text-white">
+										<BarChart3 className="size-4 text-primary" />
+										<span>Neutrality Breakdown</span>
 									</div>
+									{analysis.questionSummary && (
+										<p className="text-xs text-white/60 sm:max-w-md sm:text-right">
+											{analysis.questionSummary}
+										</p>
+									)}
+								</div>
+								{analysis.overallSummary && (
+									<p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/70">
+										{analysis.overallSummary}
+									</p>
 								)}
-						</section>
+								{analysis.comparisonHighlights && analysis.comparisonHighlights.length > 0 && (
+									<ul className="space-y-2 text-xs text-white/70">
+										{analysis.comparisonHighlights.map((item) => (
+											<li key={item} className="flex items-start gap-2">
+												<ShieldAlert className="mt-0.5 size-3 text-amber-300" />
+												<span>{item}</span>
+											</li>
+										))}
+									</ul>
+								)}
+								<div className="grid gap-4 md:grid-cols-2">
+									{analysis.models.map((model) => (
+										<div
+											key={model.modelId}
+											className="rounded-2xl border border-white/10 bg-black/40 p-4"
+										>
+											<div className="flex items-start justify-between gap-2">
+												<div>
+													<p className="text-base font-semibold text-white">
+														{model.modelName}
+													</p>
+													{model.provider && (
+														<p className="text-xs uppercase tracking-wide text-white/40">
+															{model.provider}
+														</p>
+													)}
+												</div>
+												<span
+													className={cn(
+														"flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
+														model.neutrality === "neutral"
+															? "bg-emerald-500/10 text-emerald-300"
+															: model.neutrality === "mildly_biased"
+																? "bg-amber-500/10 text-amber-300"
+																: "bg-rose-500/10 text-rose-300",
+													)}
+												>
+													<Scale className="size-3" />
+													{formatLabel(model.neutrality)}
+												</span>
+											</div>
+											<dl className="mt-3 grid gap-2 text-xs text-white/70">
+												<div className="flex items-center justify-between gap-2">
+													<dt>Stance</dt>
+													<dd className="font-medium text-white">
+														{formatLabel(model.stanceLabel)} · {formatLabel(model.stanceStrength)}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>Directness</dt>
+													<dd className="font-medium text-white">
+														{formatLabel(model.directness)}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>Policy leaning</dt>
+													<dd className="font-medium text-white">
+														{formatLabel(model.policyLeaning)}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>One-sidedness</dt>
+													<dd className="font-medium text-white">
+														{formatLabel(model.oneSidedness)}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>Counterarguments</dt>
+													<dd className="font-medium text-white">
+														{model.counterArgumentPresent ? "Present" : "Missing"}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>Loaded language</dt>
+													<dd className="font-medium text-white">
+														{Number(model.loadedLanguageScore ?? 0).toFixed(2)}
+													</dd>
+												</div>
+												<div className="flex flex-wrap items-center gap-1">
+													<dt className="text-white/60">Value emphasis:</dt>
+													<dd className="flex flex-wrap gap-1">
+														{model.valueEmphasis && model.valueEmphasis.length > 0 ? (
+															model.valueEmphasis.map((value) => (
+																<span
+																	key={value}
+																	className="rounded-full bg-white/[0.08] px-2 py-1 text-[10px] uppercase tracking-wide text-white/70"
+																>
+																	{VALUE_AXIS_LABELS[value] ?? formatLabel(value)}
+																</span>
+															))
+														) : (
+															<span className="text-white/50">No dominant values observed.</span>
+														)}
+													</dd>
+												</div>
+												<div className="flex items-center justify-between gap-2">
+													<dt>Group generalization</dt>
+													<dd className="font-medium text-white">
+														{model.groupGeneralization ? "Yes" : "No"}
+													</dd>
+												</div>
+											</dl>
+											{model.notes && (
+												<p className="mt-3 rounded-lg border border-white/10 bg-white/[0.05] p-3 text-xs text-white/65">
+													{model.notes}
+												</p>
+											)}
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+					</div>
+				)}
+		</section>
 					</div>
 				</main>
 			</div>

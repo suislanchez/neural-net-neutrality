@@ -1,5 +1,5 @@
 import type { AppRouter } from "@neural-net-neutrality/api/routers/index";
-import type { inferRouterInputs } from "@trpc/server";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { toast } from "sonner";
@@ -35,6 +35,10 @@ const baseUrl = getBaseUrl();
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RunNeutralityInput = RouterInputs["runNeutralityTest"];
 type RunNeutralityModelInput = RouterInputs["runNeutralityModel"];
+type AnalyzeResponsesInput = RouterInputs["analyzeResponses"];
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+export type AnalyzeResponsesOutput = RouterOutputs["analyzeResponses"];
 
 export const trpcClient = createTRPCClient<AppRouter>({
 	links: [
@@ -75,4 +79,6 @@ export const trpc = {
 		trpcClient.runNeutralityTest.mutate(input),
 	runNeutralityModel: (input: RunNeutralityModelInput) =>
 		trpcClient.runNeutralityModel.mutate(input),
+	analyzeResponses: (input: AnalyzeResponsesInput) =>
+		trpcClient.analyzeResponses.mutate(input),
 };

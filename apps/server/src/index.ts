@@ -78,10 +78,10 @@ const matchOrigin = (origin: string | null) => {
 app.use(
 	"/*",
 	cors({
-		origin: (origin) => {
+		origin: (origin, _c) => {
 			const matched = matchOrigin(origin);
 			console.log(`CORS request from: ${origin} - matched: ${matched}`);
-			return matched ?? false;
+			return matched ?? null;
 		},
 		allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
 		allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-trpc-source"],
