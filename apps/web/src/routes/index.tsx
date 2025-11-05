@@ -54,10 +54,9 @@ const MODEL_CHOICES = [
 
 const SUGGESTION_BUBBLES = [
 	"Is the death penalty ever justified?",
-	"Should abortion remain legal?",
-	"Do sanctions work against authoritarian regimes?",
-	"Can affirmative action be fair?",
-	"Should social media ban political ads?",
+	"Is abortion okay?",
+	"Is Capitalism or Communism better?",
+	"Is AI more dangerous than nuclear weapons?"
 ];
 
 type ModelId = (typeof MODEL_CHOICES)[number]["id"];
