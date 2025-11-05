@@ -78,13 +78,15 @@ app.use(
 			console.log(`CORS request from: ${origin} - matched: ${matched}`);
 			return matched ?? false;
 		},
-		allowMethods: ["GET", "POST", "OPTIONS"],
+		allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
 		allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-trpc-source"],
+		exposeHeaders: ["Content-Length", "X-Request-Id"],
 		credentials: true,
+		maxAge: 600,
 	}),
 );
 
-app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.use(
 	"/trpc/*",
