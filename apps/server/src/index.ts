@@ -49,6 +49,11 @@ const matchOrigin = (origin: string | null) => {
 		}
 	}
 
+	// Allow Railway deployed apps
+	if (normalizedOrigin.includes(".railway.app") || normalizedOrigin.includes(".up.railway.app")) {
+		return normalizedOrigin;
+	}
+
 	if (!isDev) {
 		return null;
 	}
@@ -68,7 +73,11 @@ const matchOrigin = (origin: string | null) => {
 app.use(
 	"/*",
 	cors({
-		origin: (origin) => matchOrigin(origin) ?? null,
+		origin: (origin) => {
+			const matched = matchOrigin(origin);
+			console.log(`CORS request from: ${origin} - matched: ${matched}`);
+			return matched ?? false;
+		},
 		allowMethods: ["GET", "POST", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-trpc-source"],
 		credentials: true,
