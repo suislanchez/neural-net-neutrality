@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { ManifestoDialog } from "./manifesto-dialog";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 
@@ -29,6 +30,7 @@ export default function Header() {
 					})}
 				</nav>
 				<div className="flex items-center gap-2">
+					<ManifestoDialog />
 					<ModeToggle />
 					<UserMenu />
 				</div>
