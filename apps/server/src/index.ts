@@ -86,7 +86,22 @@ app.use(
 	}),
 );
 
-app.all("/api/auth/*", (c) => auth.handler(c.req.raw));
+app.all("/api/auth/*", async (c) => {
+	const origin = c.req.header("origin") || c.req.header("Origin");
+	const matchedOrigin = matchOrigin(origin || null);
+	
+	const response = await auth.handler(c.req.raw);
+	
+	if (matchedOrigin) {
+		response.headers.set("Access-Control-Allow-Origin", matchedOrigin);
+		response.headers.set("Access-Control-Allow-Credentials", "true");
+		response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+		response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, x-trpc-source");
+		response.headers.set("Access-Control-Max-Age", "600");
+	}
+	
+	return response;
+});
 
 app.use(
 	"/trpc/*",
