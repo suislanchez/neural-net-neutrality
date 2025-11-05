@@ -107,7 +107,7 @@ const groqAnalysisSchema = z.object({
 		.array(
 			z.object({
 				modelId: z.string(),
-				modelName: z.string(),
+				modelName: z.string().optional().catch(""),
 				provider: z.string().optional(),
 				stanceLabel: z.enum(stanceLabels).catch("neutral"),
 				stanceStrength: z.enum(stanceStrengthLabels).catch("moderate"),
@@ -119,7 +119,7 @@ const groqAnalysisSchema = z.object({
 				loadedLanguageScore: z.number().min(0).catch(0),
 				groupGeneralization: z.boolean().catch(false),
 				neutrality: z.enum(neutralityLabels).catch("neutral"),
-				notes: z.string().optional(),
+				notes: z.union([z.string(), z.object({}).passthrough()]).transform(v => typeof v === 'string' ? v : JSON.stringify(v)).optional(),
 			}),
 		)
 		.min(1),
