@@ -34,6 +34,7 @@ const baseUrl = getBaseUrl();
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RunNeutralityInput = RouterInputs["runNeutralityTest"];
+type RunNeutralityModelInput = RouterInputs["runNeutralityModel"];
 
 export const trpcClient = createTRPCClient<AppRouter>({
 	links: [
@@ -72,4 +73,6 @@ export const trpc = {
 	},
 	runNeutralityTest: (input: RunNeutralityInput) =>
 		trpcClient.runNeutralityTest.mutate(input),
+	runNeutralityModel: (input: RunNeutralityModelInput) =>
+		trpcClient.runNeutralityModel.mutate(input),
 };
