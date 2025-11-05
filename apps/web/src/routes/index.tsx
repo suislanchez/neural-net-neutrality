@@ -233,7 +233,7 @@ function HomeComponent() {
 			if (!(id in previous)) {
 				return previous;
 			}
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			// eslint-disable-next-line @typescript-eslint/no-unused-varsd
 			const { [id]: _removed, ...rest } = previous;
 			return rest;
 		});
