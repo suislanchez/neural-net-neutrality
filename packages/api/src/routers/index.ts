@@ -6,7 +6,7 @@ import { protectedProcedure, publicProcedure, router } from "../index";
 
 const MODEL_IDS = ["gemini-flash", "claude-sonnet", "gpt-5"] as const;
 const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_GROQ_MODEL = "mixtral-8x7b-32768";
+const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 type ModelId = (typeof MODEL_IDS)[number];
 
