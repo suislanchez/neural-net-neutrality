@@ -699,7 +699,7 @@ function HomeComponent() {
 												const isSuccess = status === "success";
 												const isSelected = selectedCandidate === modelId;
 												const candidateLabel = getCandidateLabel(index);
-												const showModelInfo = isSelected || isError || isLoading;
+												const showModelInfo = selectedCandidate !== null || isError;
 												
 												const statusBadge =
 													status === "success"
