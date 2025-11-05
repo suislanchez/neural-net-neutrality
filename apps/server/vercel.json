@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd ../.. && bun install && turbo run build --filter=server",
+  "outputDirectory": "dist",
+  "installCommand": "echo 'Skipping install'",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.js"
+    }
+  ]
+}
