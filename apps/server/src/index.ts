@@ -10,12 +10,67 @@ import { logger } from "hono/logger";
 const app = new Hono();
 
 app.use(logger());
+const configuredOrigins = (process.env.CORS_ORIGIN ?? "")
+	.split(",")
+	.map((origin) => origin.trim())
+	.filter(Boolean);
+
+const localFallbackOrigins = [
+	"http://localhost:3000",
+	"http://localhost:3001",
+	"http://localhost:32000",
+	"http://127.0.0.1:3000",
+	"http://127.0.0.1:3001",
+	"http://127.0.0.1:32000",
+];
+
+const allowedOrigins = new Set([...configuredOrigins, ...localFallbackOrigins]);
+
+const isDev = process.env.NODE_ENV !== "production";
+
+const matchOrigin = (origin: string | null) => {
+	if (!origin) {
+		return null;
+	}
+
+	const normalizedOrigin = origin.replace(/\/$/, "");
+	if (allowedOrigins.has(normalizedOrigin)) {
+		return normalizedOrigin;
+	}
+
+	// Support simple wildcard patterns like http://localhost:*
+	for (const configured of configuredOrigins) {
+		if (!configured.endsWith(":*")) {
+			continue;
+		}
+		const base = configured.slice(0, -2);
+		if (normalizedOrigin.startsWith(base)) {
+			return normalizedOrigin;
+		}
+	}
+
+	if (!isDev) {
+		return null;
+	}
+
+	try {
+		const url = new URL(normalizedOrigin);
+		if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+			return normalizedOrigin;
+		}
+	} catch {
+		// ignore parse errors
+	}
+
+	return null;
+};
+
 app.use(
 	"/*",
 	cors({
-		origin: process.env.CORS_ORIGIN || "*",
+		origin: (origin) => matchOrigin(origin) ?? null,
 		allowMethods: ["GET", "POST", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-trpc-source"],
 		credentials: true,
 	}),
 );

@@ -87,6 +87,36 @@ export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
 		return "OK";
 	}),
+	llmStatus: publicProcedure.query(async () => {
+		if (!process.env.REPLICATE_API_KEY) {
+			return {
+				ready: false,
+				reason: "REPLICATE_API_KEY is not configured",
+			};
+		}
+
+		try {
+			const replicate = new Replicate({
+				auth: process.env.REPLICATE_API_KEY,
+			});
+			await replicate.models.get("google", "gemini-2.5-flash");
+
+			return {
+				ready: true,
+				reason: null,
+			};
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unable to reach Replicate models";
+
+			return {
+				ready: false,
+				reason: message,
+			};
+		}
+	}),
 	runNeutralityTest: publicProcedure
 		.input(
 			z.object({

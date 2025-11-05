@@ -17,7 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { trpc, trpcClient } from "@/utils/trpc";
+import { trpc } from "@/utils/trpc";
 
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
@@ -55,11 +55,14 @@ const SUGGESTION_BUBBLES = [
 	"Should social media ban political ads?",
 ];
 
-type ModelChoice = (typeof MODEL_CHOICES)[number];
-type ModelId = ModelChoice["id"];
+type ModelId = (typeof MODEL_CHOICES)[number]["id"];
 
 function HomeComponent() {
 	const healthCheck = useQuery(trpc.healthCheck.queryOptions());
+	const llmStatus = useQuery({
+		...trpc.llmStatus.queryOptions(),
+		refetchInterval: 60_000,
+	});
 	const [prompt, setPrompt] = useState("");
 	const [selectedModels, setSelectedModels] = useState<ModelId[]>(
 		MODEL_CHOICES.map((model) => model.id),
@@ -77,7 +80,7 @@ function HomeComponent() {
 	const runNeutrality = useMutation({
 		mutationKey: ["runNeutralityTest"],
 		mutationFn: async (input: { prompt: string; models: ModelId[] }) => {
-			return trpcClient.runNeutralityTest.mutate(input);
+			return trpc.runNeutralityTest(input);
 		},
 		onMutate: () => {
 			setResponses([]);
@@ -106,6 +109,13 @@ function HomeComponent() {
 		if (!trimmed || selectedModels.length === 0) {
 			return;
 		}
+		if (!llmStatus.data?.ready) {
+			toast.error(
+				llmStatus.data?.reason ??
+					"LLM service is currently unavailable. Please try again later.",
+			);
+			return;
+		}
 		runNeutrality.mutate({
 			prompt: trimmed,
 			models: selectedModels,
@@ -114,8 +124,21 @@ function HomeComponent() {
 
 	const suggestionColors = ["bg-[#5eead4]", "bg-[#c084fc]", "bg-[#f97316]"];
 	const isSending = runNeutrality.isPending;
+	const llmReady = llmStatus.data?.ready ?? false;
 	const isSendDisabled =
-		!prompt.trim() || selectedModels.length === 0 || isSending;
+		!prompt.trim() || selectedModels.length === 0 || isSending || !llmReady;
+
+	const apiStatusDisplay = healthCheck.isLoading
+		? { text: "Connecting…", color: "bg-amber-400" }
+		: healthCheck.data
+			? { text: "API Online", color: "bg-emerald-400" }
+			: { text: "API Offline", color: "bg-rose-400" };
+
+	const llmStatusDisplay = llmStatus.isLoading
+		? { text: "Checking models…", color: "bg-amber-400" }
+		: llmReady
+			? { text: "LLM Ready", color: "bg-emerald-400" }
+			: { text: "LLM Offline", color: "bg-rose-400" };
 
 	return (
 		<div className="flex h-screen w-full bg-[#0f1016] text-white">
@@ -182,16 +205,15 @@ function HomeComponent() {
 					</div>
 					<div className="flex items-center gap-3">
 						<div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/60">
-							<span
-								className={`size-2 rounded-full ${healthCheck.data ? "bg-emerald-400" : "bg-amber-400"}`}
-							/>
-							<span>
-								{healthCheck.isLoading
-									? "Connecting..."
-									: healthCheck.data
-										? "API Online"
-										: "API Offline"}
-							</span>
+							<span className={`size-2 rounded-full ${apiStatusDisplay.color}`} />
+							<span>{apiStatusDisplay.text}</span>
+						</div>
+						<div
+							className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/60"
+							title={llmStatus.data?.reason ?? undefined}
+						>
+							<span className={`size-2 rounded-full ${llmStatusDisplay.color}`} />
+							<span>{llmStatusDisplay.text}</span>
 						</div>
 						<Button
 							variant="ghost"
@@ -311,6 +333,13 @@ function HomeComponent() {
 										<Send className="ml-2 size-4" />
 									</Button>
 								</div>
+
+								{!llmStatus.isLoading && !llmReady && (
+									<p className="mt-2 text-xs text-rose-300">
+										{llmStatus.data?.reason ??
+											"LLM service is unavailable. Configure Replicate to run prompts."}
+									</p>
+								)}
 
 								<div className="mt-5 flex flex-wrap justify-center gap-3">
 									{SUGGESTION_BUBBLES.map((suggestion, index) => (
