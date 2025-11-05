@@ -18,9 +18,9 @@ const trustedOrigins = [
 	"http://127.0.0.1:32000",
 ];
 
-// In production, allow Railway domains
+// In production, allow Railway and Vercel domains
 if (process.env.NODE_ENV === "production") {
-	trustedOrigins.push("https://*.railway.app", "https://*.up.railway.app");
+	trustedOrigins.push("https://*.railway.app", "https://*.up.railway.app", "https://*.vercel.app");
 }
 
 export const auth = betterAuth<BetterAuthOptions>({

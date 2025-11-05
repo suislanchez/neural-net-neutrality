@@ -54,6 +54,11 @@ const matchOrigin = (origin: string | null) => {
 		return normalizedOrigin;
 	}
 
+	// Allow Vercel deployed apps
+	if (normalizedOrigin.includes(".vercel.app")) {
+		return normalizedOrigin;
+	}
+
 	if (!isDev) {
 		return null;
 	}
