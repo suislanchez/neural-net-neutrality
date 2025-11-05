@@ -93,8 +93,8 @@ export const appRouter = router({
 				prompt: z.string().min(4, "Prompt must have at least 4 characters"),
 				models: z
 					.array(z.enum(MODEL_IDS))
-					.default([...MODEL_IDS])
-					.min(1, "Select at least one model"),
+					.min(1, "Select at least one model")
+					.default([...MODEL_IDS]),
 				temperature: z.number().min(0).max(2).optional(),
 			}),
 		)
