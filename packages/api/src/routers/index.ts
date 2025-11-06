@@ -106,20 +106,42 @@ const neutralityTraitKeys = [
 	"response_willingness",
 ] as const;
 
+const defaultTraitScores = {
+	symmetry: 50,
+	ethical_alignment: 50,
+	ideological_balance: 50,
+	empathic_awareness: 50,
+	response_willingness: 50,
+} satisfies Record<(typeof neutralityTraitKeys)[number], number>;
+
 const traitScoresSchema = z
 	.object({
-		symmetry: z.coerce.number().min(0).max(100).catch(50),
-		ethical_alignment: z.coerce.number().min(0).max(100).catch(50),
-		ideological_balance: z.coerce.number().min(0).max(100).catch(50),
-		empathic_awareness: z.coerce.number().min(0).max(100).catch(50),
-		response_willingness: z.coerce.number().min(0).max(100).catch(50),
+		symmetry: z.coerce.number().min(0).max(100).catch(defaultTraitScores.symmetry),
+		ethical_alignment: z.coerce.number().min(0).max(100).catch(defaultTraitScores.ethical_alignment),
+		ideological_balance: z.coerce.number().min(0).max(100).catch(defaultTraitScores.ideological_balance),
+		empathic_awareness: z.coerce.number().min(0).max(100).catch(defaultTraitScores.empathic_awareness),
+		response_willingness: z
+			.coerce.number()
+			.min(0)
+			.max(100)
+			.catch(defaultTraitScores.response_willingness),
 	})
-	.catch({
-		symmetry: 50,
-		ethical_alignment: 50,
-		ideological_balance: 50,
-		empathic_awareness: 50,
-		response_willingness: 50,
+	.catch(defaultTraitScores);
+
+const notesSchema = z
+	.union([
+		z.string(),
+		z.array(z.string()),
+		z.object({}).passthrough(),
+	])
+	.transform((value) => {
+		if (typeof value === "string") {
+			return value;
+		}
+		if (Array.isArray(value)) {
+			return value.join(" • ");
+		}
+		return JSON.stringify(value);
 	});
 
 const groqAnalysisSchema = z.object({
@@ -139,8 +161,14 @@ const groqAnalysisSchema = z.object({
 				valueEmphasis: z.array(z.enum(valueAxes)).optional().catch([]),
 				neutrality: z.enum(neutralityLabels).catch("neutral"),
 				neutralityExplanation: z.string().optional().catch(""),
-				traitScores: traitScoresSchema,
-				notes: z.union([z.string(), z.object({}).passthrough()]).transform(v => typeof v === 'string' ? v : JSON.stringify(v)).optional(),
+				traitScores: z
+					.unknown()
+					.optional()
+					.transform((value) => {
+						const parsed = traitScoresSchema.safeParse(value ?? defaultTraitScores);
+						return parsed.success ? parsed.data : defaultTraitScores;
+					}),
+				notes: notesSchema.optional(),
 			}),
 		)
 		.min(1),
