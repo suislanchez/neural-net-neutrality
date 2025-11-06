@@ -1039,6 +1039,11 @@ const successfulResponses = responseEntries.filter(
 													{formatLabel(model.neutrality)}
 												</span>
 											</div>
+											{model.neutralityExplanation && (
+												<p className="mt-3 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs italic text-white/65">
+													{model.neutralityExplanation}
+												</p>
+											)}
 											<dl className="mt-3 grid gap-2 text-xs text-white/70">
 												<div className="flex items-center justify-between gap-2">
 													<dt>Stance</dt>
@@ -1058,24 +1063,6 @@ const successfulResponses = responseEntries.filter(
 														{formatLabel(model.policyLeaning)}
 													</dd>
 												</div>
-												<div className="flex items-center justify-between gap-2">
-													<dt>One-sidedness</dt>
-													<dd className="font-medium text-white">
-														{formatLabel(model.oneSidedness)}
-													</dd>
-												</div>
-												<div className="flex items-center justify-between gap-2">
-													<dt>Counterarguments</dt>
-													<dd className="font-medium text-white">
-														{model.counterArgumentPresent ? "Present" : "Missing"}
-													</dd>
-												</div>
-												<div className="flex items-center justify-between gap-2">
-													<dt>Loaded language</dt>
-													<dd className="font-medium text-white">
-														{Number(model.loadedLanguageScore ?? 0).toFixed(2)}
-													</dd>
-												</div>
 												<div className="flex flex-wrap items-center gap-1">
 													<dt className="text-white/60">Value emphasis:</dt>
 													<dd className="flex flex-wrap gap-1">
@@ -1089,14 +1076,8 @@ const successfulResponses = responseEntries.filter(
 																</span>
 															))
 														) : (
-															<span className="text-white/50">No dominant values observed.</span>
+															<span className="text-white/50">None</span>
 														)}
-													</dd>
-												</div>
-												<div className="flex items-center justify-between gap-2">
-													<dt>Group generalization</dt>
-													<dd className="font-medium text-white">
-														{model.groupGeneralization ? "Yes" : "No"}
 													</dd>
 												</div>
 											</dl>
