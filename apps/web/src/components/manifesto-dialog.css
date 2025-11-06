@@ -1,0 +1,111 @@
+.manifesto-3d-stack {
+	position: relative;
+	overflow: hidden;
+	border-radius: 1.5rem;
+	border: 1px solid rgba(148, 163, 184, 0.25);
+	background: linear-gradient(
+			145deg,
+			rgba(15, 23, 42, 0.92),
+			rgba(30, 41, 59, 0.82),
+			rgba(51, 65, 85, 0.68)
+		)
+		no-repeat;
+	box-shadow: 0 30px 60px rgba(15, 23, 42, 0.45);
+	padding: 2.5rem clamp(1.5rem, 4vw, 2.75rem);
+	perspective: 1000px;
+}
+
+.manifesto-3d-content {
+	position: relative;
+	z-index: 3;
+}
+
+.manifesto-3d-orbit {
+	position: absolute;
+	top: -25%;
+	left: 50%;
+	width: clamp(240px, 45vw, 420px);
+	height: clamp(240px, 45vw, 420px);
+	transform-style: preserve-3d;
+	transform: translateX(-50%) rotateX(68deg);
+	background: conic-gradient(
+		from 180deg,
+		rgba(59, 130, 246, 0.22),
+		rgba(6, 182, 212, 0.18),
+		rgba(99, 102, 241, 0.24),
+		rgba(59, 130, 246, 0.22)
+	);
+	filter: blur(0.25rem);
+	border-radius: 50%;
+	animation: manifestoOrbit 18s linear infinite;
+	opacity: 0.75;
+}
+
+.manifesto-3d-orbit::after {
+	content: "";
+	position: absolute;
+	inset: 22%;
+	border-radius: 50%;
+	background: radial-gradient(
+		circle at 50% 40%,
+		rgba(255, 255, 255, 0.4),
+		rgba(59, 130, 246, 0.1) 55%,
+		transparent
+	);
+	filter: blur(12px);
+	opacity: 0.6;
+}
+
+.manifesto-3d-grid {
+	position: absolute;
+	inset: -45% -35%;
+	background:
+		radial-gradient(
+				circle at 50% 50%,
+				rgba(59, 130, 246, 0.28),
+				transparent 72%
+			)
+			0 0 / 100% 100% no-repeat,
+		repeating-linear-gradient(
+				transparent,
+				transparent 12px,
+				rgba(148, 163, 184, 0.08) 12px,
+				rgba(148, 163, 184, 0.08) 13px
+			)
+			0 0 / 100% 100%,
+		repeating-linear-gradient(
+				90deg,
+				transparent,
+				transparent 12px,
+				rgba(148, 163, 184, 0.08) 12px,
+				rgba(148, 163, 184, 0.08) 13px
+			)
+			0 0 / 100% 100%;
+	transform: rotateX(72deg) translateY(18%);
+	animation: manifestoWave 16s ease-in-out infinite alternate;
+	opacity: 0.5;
+	filter: blur(0.5px);
+}
+
+@keyframes manifestoOrbit {
+	0% {
+		transform: translateX(-50%) rotateX(68deg) rotateZ(0deg);
+	}
+	50% {
+		transform: translateX(-50%) rotateX(68deg) rotateZ(180deg) scale(1.05);
+	}
+	100% {
+		transform: translateX(-50%) rotateX(68deg) rotateZ(360deg);
+	}
+}
+
+@keyframes manifestoWave {
+	0% {
+		transform: rotateX(72deg) translateY(18%) rotateZ(0deg);
+		opacity: 0.45;
+	}
+	100% {
+		transform: rotateX(76deg) translateY(8%) rotateZ(6deg);
+		opacity: 0.65;
+	}
+}

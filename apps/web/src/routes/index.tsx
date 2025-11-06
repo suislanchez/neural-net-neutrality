@@ -30,6 +30,8 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/utils/trpc";
 import type { AnalyzeResponsesOutput } from "@/utils/trpc";
+import { HistoryView } from "@/components/history-view";
+import { LeaderboardView } from "@/components/leaderboard-view";
 
 export const Route = createFileRoute("/")({
 	component: HomeComponent,
@@ -65,6 +67,182 @@ const VALUE_AXIS_LABELS: Record<string, string> = {
 	security_safety: "Security & Safety",
 	tradition_stability: "Tradition & Stability",
 	innovation_efficiency: "Innovation & Efficiency",
+};
+
+const RADAR_TRAIT_KEYS = [
+	"symmetry",
+	"ethical_alignment",
+	"ideological_balance",
+	"empathic_awareness",
+	"response_willingness",
+] as const;
+
+type NeutralityTraitKey = (typeof RADAR_TRAIT_KEYS)[number];
+
+const TRAIT_LABELS: Record<NeutralityTraitKey, string> = {
+	symmetry: "Symmetry",
+	ethical_alignment: "Ethical Alignment",
+	ideological_balance: "Ideological Balance",
+	empathic_awareness: "Empathic Awareness",
+	response_willingness: "Response Willingness",
+};
+
+type NeutralityRadarChartProps = {
+	scores?: Partial<Record<NeutralityTraitKey, number>>;
+};
+
+const NeutralityRadarChart = ({ scores }: NeutralityRadarChartProps) => {
+	const chartSize = 168;
+	const center = chartSize / 2;
+	const radius = center - 24;
+	const labelRadius = radius + 18;
+	const gridLevels = [0.33, 0.66, 1];
+
+	const clampScore = (value: unknown) => {
+		const numeric = Number(value);
+		if (Number.isFinite(numeric)) {
+			return Math.max(0, Math.min(100, Math.round(numeric)));
+		}
+		return 50;
+	};
+
+	const getPoint = (index: number, customRadius: number) => {
+		const angle = (Math.PI * 2 * index) / RADAR_TRAIT_KEYS.length - Math.PI / 2;
+		return {
+			x: center + Math.cos(angle) * customRadius,
+			y: center + Math.sin(angle) * customRadius,
+		};
+	};
+
+	const normalizedScores = RADAR_TRAIT_KEYS.map((key) =>
+		clampScore(scores?.[key]),
+	);
+
+	const polygonPoints = normalizedScores
+		.map((score, index) => {
+			const { x, y } = getPoint(index, radius * (score / 100));
+			return `${x},${y}`;
+		})
+		.join(" ");
+
+	return (
+		<div className="mt-4">
+			<svg
+				width={chartSize}
+				height={chartSize}
+				viewBox={`0 0 ${chartSize} ${chartSize}`}
+				aria-hidden
+				className="mx-auto block"
+			>
+				{gridLevels.map((level) => (
+					<polygon
+						key={`grid-${level}`}
+						points={RADAR_TRAIT_KEYS.map((_, index) => {
+							const { x, y } = getPoint(index, radius * level);
+							return `${x},${y}`;
+						}).join(" ")}
+						fill="none"
+						stroke="rgba(255,255,255,0.12)"
+						strokeWidth={1}
+					/>
+				))}
+
+				{RADAR_TRAIT_KEYS.map((_, index) => {
+					const { x, y } = getPoint(index, radius);
+					return (
+						<line
+							key={`axis-${index}`}
+							x1={center}
+							y1={center}
+							x2={x}
+							y2={y}
+							stroke="rgba(255,255,255,0.12)"
+							strokeWidth={1}
+						/>
+					);
+				})}
+
+				<polygon
+					points={RADAR_TRAIT_KEYS.map((_, index) => {
+						const { x, y } = getPoint(index, radius);
+						return `${x},${y}`;
+					}).join(" ")}
+					fill="rgba(255,255,255,0.02)"
+					stroke="rgba(255,255,255,0.08)"
+					strokeWidth={1}
+				/>
+
+				<polygon
+					points={polygonPoints}
+					fill="rgba(72,133,237,0.28)"
+					stroke="rgba(72,133,237,0.85)"
+					strokeWidth={1.5}
+				/>
+
+				{normalizedScores.map((score, index) => {
+					const { x, y } = getPoint(index, radius * (score / 100));
+					return (
+						<circle
+							key={`point-${index}`}
+							cx={x}
+							cy={y}
+							r={2.5}
+							fill="rgba(72,133,237,0.9)"
+						/>
+					);
+				})}
+
+				{RADAR_TRAIT_KEYS.map((key, index) => {
+					const { x, y } = getPoint(index, labelRadius);
+					const score = normalizedScores[index];
+					const textAnchor =
+						x > center + 10
+							? "start"
+							: x < center - 10
+								? "end"
+								: "middle";
+				const dominantBaseline =
+					y > center + 10
+						? "hanging"
+						: y < center - 10
+							? "alphabetic"
+							: "middle";
+					return (
+						<text
+							key={`label-${key}`}
+							x={x}
+							y={y}
+							textAnchor={textAnchor}
+							dominantBaseline={dominantBaseline}
+							fontSize={10}
+							fill="rgba(255,255,255,0.75)"
+						>
+							{TRAIT_LABELS[key]}
+							<tspan
+								x={x}
+								dy={12}
+								fontSize={9}
+								fill="rgba(255,255,255,0.55)"
+							>
+								{score}
+							</tspan>
+						</text>
+					);
+				})}
+			</svg>
+
+			<dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-white/60 md:grid-cols-1">
+				{RADAR_TRAIT_KEYS.map((key, index) => (
+					<div key={`trait-${key}`} className="flex items-center justify-between">
+						<dt>{TRAIT_LABELS[key]}</dt>
+						<dd className="font-medium text-white">
+							{normalizedScores[index]}
+						</dd>
+					</div>
+				))}
+			</dl>
+		</div>
+	);
 };
 
 const TOPICS = [
@@ -231,6 +409,7 @@ function HomeComponent() {
 	const [analysisError, setAnalysisError] = useState<string | null>(null);
 	const [interactionMode, setInteractionMode] = useState<"playground" | "battle">("playground");
 	const [comparisonMode, setComparisonMode] = useState<"multi" | "side-by-side">("multi");
+	const [currentView, setCurrentView] = useState<"playground" | "history" | "leaderboard">("playground");
 	
 	// Helper function to get random topics
 	const getRandomTopics = () => {
@@ -511,8 +690,12 @@ const successfulResponses = responseEntries.filter(
 					)}
 				>
 					<button
+						onClick={() => setCurrentView("playground")}
 						className={cn(
-							"flex w-full items-center gap-3 rounded-lg bg-white/[0.08] px-3 py-2 text-sm transition hover:bg-white/[0.12]",
+							"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+							currentView === "playground"
+								? "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+								: "text-white/70 hover:bg-white/[0.08]",
 							isSidebarCollapsed && "md:w-auto md:justify-center md:px-2",
 						)}
 					>
@@ -520,8 +703,12 @@ const successfulResponses = responseEntries.filter(
 						<span className={cn(isSidebarCollapsed && "md:hidden")}>New Test</span>
 					</button>
 					<button
+						onClick={() => setCurrentView("history")}
 						className={cn(
-							"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/[0.08]",
+							"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+							currentView === "history"
+								? "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+								: "text-white/70 hover:bg-white/[0.08]",
 							isSidebarCollapsed && "md:w-auto md:justify-center md:px-2",
 						)}
 					>
@@ -529,8 +716,12 @@ const successfulResponses = responseEntries.filter(
 						<span className={cn(isSidebarCollapsed && "md:hidden")}>History</span>
 					</button>
 					<button
+						onClick={() => setCurrentView("leaderboard")}
 						className={cn(
-							"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/[0.08]",
+							"flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
+							currentView === "leaderboard"
+								? "bg-white/[0.08] text-white hover:bg-white/[0.12]"
+								: "text-white/70 hover:bg-white/[0.08]",
 							isSidebarCollapsed && "md:w-auto md:justify-center md:px-2",
 						)}
 					>
@@ -576,6 +767,11 @@ const successfulResponses = responseEntries.filter(
 			</aside>
 
 			<div className="flex flex-1 flex-col transition-all duration-300 md:overflow-y-auto">
+				{currentView === "history" ? (
+					<HistoryView />
+				) : currentView === "leaderboard" ? (
+					<LeaderboardView />
+				) : (
 				<main className="flex flex-1 justify-center px-3 pb-16 pt-3 transition-all duration-300 sm:px-6">
 					<div className="flex w-full max-w-4xl flex-col gap-4 text-center transition-all duration-300">
 						<div className="w-full text-left">
@@ -1039,11 +1235,7 @@ const successfulResponses = responseEntries.filter(
 													{formatLabel(model.neutrality)}
 												</span>
 											</div>
-											{model.neutralityExplanation && (
-												<p className="mt-3 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-xs italic text-white/65">
-													{model.neutralityExplanation}
-												</p>
-											)}
+											<NeutralityRadarChart scores={model.traitScores} />
 											<dl className="mt-3 grid gap-2 text-xs text-white/70">
 												<div className="flex items-center justify-between gap-2">
 													<dt>Stance</dt>
@@ -1096,6 +1288,7 @@ const successfulResponses = responseEntries.filter(
 		</section>
 					</div>
 				</main>
+				)}
 			</div>
 		</div>
 	);
