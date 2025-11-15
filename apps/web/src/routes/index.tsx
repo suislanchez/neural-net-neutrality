@@ -659,7 +659,7 @@ const successfulResponses = responseEntries.filter(
 	};
 
 	return (
-		<div className="relative flex h-screen w-full flex-col overflow-hidden bg-[#0f1016] text-white md:flex-row">
+		<div className="relative flex min-h-svh w-full flex-col overflow-x-hidden bg-[#0f1016] text-white md:h-svh md:flex-row md:overflow-hidden">
 			{isSidebarOpen && (
 				<div
 					className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
@@ -766,7 +766,7 @@ const successfulResponses = responseEntries.filter(
 				</button>
 			</aside>
 
-			<div className="flex flex-1 flex-col transition-all duration-300 md:overflow-y-auto">
+			<div className="flex flex-1 flex-col overflow-y-auto transition-all duration-300">
 				{currentView === "history" ? (
 					<HistoryView />
 				) : currentView === "leaderboard" ? (
