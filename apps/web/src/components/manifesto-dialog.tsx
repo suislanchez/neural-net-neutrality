@@ -38,7 +38,7 @@ export function ManifestoDialog() {
 					<div className="manifesto-3d-grid" aria-hidden />
 					<div className="manifesto-3d-content space-y-6 text-sm">
 						{/* Introduction */}
-						<section>
+						<section className="space-y-3">
 							<p className="leading-relaxed text-foreground">
 								Research increasingly shows that many large language models
 								(LLMs) lean politically in measurable ways. These models aren't
@@ -46,12 +46,33 @@ export function ManifestoDialog() {
 								data, fine-tuning processes, and the worldviews of their
 								creators.
 							</p>
+							<p className="text-sm text-muted-foreground">
+								Dive deeper into documented bias patterns in{" "}
+								<a
+									href="https://www.scl.org/llms-are-left-leaning-liberals-the-hidden-political-bias-of-large-language-models/?utm_source=perplexity"
+									className="font-medium text-primary underline-offset-2 hover:underline"
+									target="_blank"
+									rel="noreferrer"
+								>
+									SCL&apos;s analysis of political lean
+								</a>{" "}
+								and{" "}
+								<a
+									href="https://openai.com/index/defining-and-evaluating-political-bias-in-llms/"
+									className="font-medium text-primary underline-offset-2 hover:underline"
+									target="_blank"
+									rel="noreferrer"
+								>
+									OpenAI&apos;s framework for evaluating bias
+								</a>
+								.
+							</p>
 						</section>
 
 						{/* The Problem */}
 						<section className="space-y-3">
 							<h3 className="text-lg font-semibold text-foreground">
-								🔬 The Research
+								The Research
 							</h3>
 							<div className="space-y-4">
 								<div className="rounded-lg border border-border/50 bg-muted/30 p-4">
@@ -117,7 +138,7 @@ export function ManifestoDialog() {
 						{/* Why It Happens */}
 						<section className="space-y-3">
 							<h3 className="text-lg font-semibold text-foreground">
-								🤔 Why Does This Happen?
+								Why Does This Happen?
 							</h3>
 							<div className="space-y-3">
 								<div className="flex gap-3">
@@ -198,7 +219,7 @@ export function ManifestoDialog() {
 						{/* What It Means */}
 						<section className="space-y-3">
 							<h3 className="text-lg font-semibold text-foreground">
-								🎯 What This Means
+								What This Means
 							</h3>
 							<div className="space-y-3">
 								<div className="rounded-lg border-l-4 border-primary bg-primary/5 p-4">
@@ -244,7 +265,7 @@ export function ManifestoDialog() {
 						{/* Our Mission */}
 						<section className="space-y-3">
 							<h3 className="text-lg font-semibold text-foreground">
-								🚀 Our Mission
+								Our Mission
 							</h3>
 							<div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
 								<p className="text-sm leading-relaxed text-foreground">
